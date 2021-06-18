@@ -98,6 +98,47 @@ function patch(oldVnode, newVnode){
     })
   }
 }
-updateChildren(){}
+function updateChildren(parent, oldChildren, newChildren){
+  let oldStartIndex = 0
+  let oldStartVnode = oldChildren[oldStartIndex]
+  let oldEndIndex = oldChildren.length - 1
+  let oldEndVnode = oldChildren[oldEndIndex]
+
+  let newStartIndex = 0
+  let newStartVnode = newChildren[newStartIndex]
+  let newEndIndex = newChildren.length - 1
+  let newEndVnode = newChildren[newEndIndex]
+
+  let keyIndexMap = createMapByKeyToIndex(oldChildren) // 旧节点key-index映射表
+
+  while(oldStartIndex <= oldEndIndex && newStartIndex <= newEndIndex){
+    if(isSameNode(oldStartVnode, newStartVnode)){
+      patch(oldStartVnode, newStartVnode)
+      oldStartVnode = oldChildren[++oldStartIndex]
+      newStartVnode = newChildren[++newStartIndex]
+    } else if(isSameNode(oldEndVnode, newEndVnode)){
+      patch(oldEndVnode, newEndVnode)
+      oldEndVnode = oldChildren[--oldEndIndex]
+      newEndVnode = newChildren[--newEndIndex]
+    } else if(isSameNode(oldStartVnode, newEndVnode)){
+      oldStartVnode = oldChildren[++oldStartIndex]
+      newEndVnode = newChildren[--newEndIndex]
+    } else if(isSameNode(oldEndVnode, newStartVnode)){
+      patch(oldEndVnode, newStartVnode)
+      oldEndVnode = oldChildren[--oldEndIndex]
+      newStartVnode = newChildren[++newStartIndex]
+    } else {
+      let index = keyIndexMap[newStartVnode.key]
+      if(!index){
+        parent.insertBefore(createDomElementFrom(newStartVnode), oldStartVnode.domElement)
+        newStartVnode = newChildren[++newStartIndex]
+      } else {
+        
+      }
+    }
+  }
+}
+
+
 let oldVnode = createElement('div', {className: "my-div", style: {backgroundColor: '#f5c0c0'}}, createElement('span', {}, '我是span标签'))
 render(oldVnode, document.querySelector('#app'))
