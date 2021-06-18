@@ -1,4 +1,4 @@
-function createElement(type, props, ...children){
+function createElement(tag, props, ...children){
   let key
   if(props.key){
     key = props.key
@@ -10,11 +10,11 @@ function createElement(type, props, ...children){
     }
     return vnode
   })
-  return vNode(type, props, key, children, text = undefined)
+  return vNode(tag, props, key, children, text = undefined)
 }
 
-function vNode(type, props, key, children, text){
-  return { type, props, key, children, text }
+function vNode(tag, props, key, children, text){
+  return { tag, props, key, children, text }
 }
 
 function render(vNode, container){
@@ -23,10 +23,10 @@ function render(vNode, container){
 }
 
 function createDomElementFrom(vNode){
-  let { type, props, key, children, text } = vNode
-  if(type){
+  let { tag, props, key, children, text } = vNode
+  if(tag){
     // 创建虚拟dom对应的真实dom
-    vNode.domElement = document.createElement(type)
+    vNode.domElement = document.createElement(tag)
     // 添加属性方法
     updateEleProperties(vNode)
     // 递归调用子组件
@@ -73,7 +73,7 @@ function updateEleProperties(newVnode, oldProps = {}){
 }
 
 function patch(oldVnode, newVnode){
-  if(oldVnode.type !== newVnode.type){
+  if(oldVnode.tag !== newVnode.tag){
     return oldVnode.domElement.parentNode.replaceChild(createDomElementFrom(newVnode), oldVnode.domElement)
   }
   if(oldVnode.text !== newVnode.text){
@@ -128,17 +128,83 @@ function updateChildren(parent, oldChildren, newChildren){
       oldEndVnode = oldChildren[--oldEndIndex]
       newStartVnode = newChildren[++newStartIndex]
     } else {
+      // 以上四种对比方法都没有找到（头头，尾尾，头尾，尾头）
+      // 就找到当前新的头是否在旧的dom中出现过（根据key判断）
+      // 如果出现过，就用新的去patch旧的
+      // 如果没出现过，直接插入到旧的头的前面
       let index = keyIndexMap[newStartVnode.key]
-      if(!index){
+      if(index === null || index === undefined){
         parent.insertBefore(createDomElementFrom(newStartVnode), oldStartVnode.domElement)
         newStartVnode = newChildren[++newStartIndex]
       } else {
-        
+        patch(oldChildren[index], newStartVnode)
+        parent.insertBefore(oldChildren[index].domElement, oldStartVnode.domElement)
+        newStartVnode = newChildren[++newStartIndex]
+        oldChildren[index] = undefined
       }
     }
   }
+
+  // 新的节点长
+  if(newStartIndex <= newEndIndex){
+    for(let index = newStartIndex; index <= newEndIndex; index++){
+      let afterElement = newChildren[index + 1] ? newChildren[index + 1] : null
+      parent.insertBefore(createDomElementFrom(newChildren[index], afterElement))
+    }
+  // 老的节点长
+  } else if(oldStartIndex <= oldEndIndex){
+    for(let index = oldStartIndex; index <= oldEndIndex; index++){
+      let element = oldChildren[index]
+      if(element){
+        parent.removeChild(element.domElement)
+      }
+    }
+  }
+
 }
 
+// 映射表
+function createMapByKeyToIndex(oldChildren){
+  let map = {}
+  for(let index = 0; index < oldChildren.length; index++){
+    let element = oldChildren[index]
+    if(element.key){
+      map[element.key] = index
+    }
+  }
+  return map
+}
 
-let oldVnode = createElement('div', {className: "my-div", style: {backgroundColor: '#f5c0c0'}}, createElement('span', {}, '我是span标签'))
+function isSameNode(oldVnode, newVnode){
+  return oldVnode.key === newVnode.key && oldVnode.tag === newVnode.tag
+}
+
+let oldVnode = createElement('div', {className: "my-div"},
+                             createElement('li', {key: 'A'}, 'A'),
+                             createElement('li', {key: 'B'}, 'B'),
+                             createElement('li', {key: 'C'}, 'C'),
+                             createElement('li', {key: 'D'}, 'D'),
+                             createElement('li', {key: 'E'}, 'E'),
+                             createElement('li', {key: 'F'}, 'F'),
+                             createElement('li', {key: 'G'}, 'G'),
+                             createElement('li', {key: 'H'}, 'H'),                             
+                             )
 render(oldVnode, document.querySelector('#app'))
+
+let newVnode = createElement('div', {className: "my-div"},
+                            createElement('li', {key: 'A'}, 'A'),
+                            createElement('li', {key: 'B'}, 'B'),
+                            createElement('li', {key: 'C'}, 'C'),
+                            createElement('li', {key: 'XX'}, '薛呀'),
+                            createElement('li', {key: 'E'}, 'E'),
+                            createElement('li', {key: 'F'}, 'F'),
+                            createElement('li', {key: 'G'}, 'G'),
+                            createElement('li', {key: 'H'}, 'H'),                             
+                            )
+
+                            
+setTimeout(() => {
+  console.time()
+  patch(oldVnode, newVnode)
+  console.timeEnd()
+}, 2000);                            
